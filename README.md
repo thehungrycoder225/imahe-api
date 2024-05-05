@@ -45,9 +45,3 @@ License
 Contact
 
 - thehungrycoder225
-
-```
-
-Please replace the placeholders with your actual GitHub username, Twitter handle, email, and any other specific details about your project.
-
-```
