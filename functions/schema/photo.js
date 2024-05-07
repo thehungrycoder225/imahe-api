@@ -22,10 +22,7 @@ const photoSchema = new Schema({
     type: Schema.Types.ObjectId,
     ref: 'Album',
   },
-  user: {
-    type: Schema.Types.ObjectId,
-    ref: 'User',
-  },
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 });
 
 module.exports = photoSchema;

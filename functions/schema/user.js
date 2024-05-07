@@ -30,15 +30,10 @@ const userSchema = new Schema({
   },
   password: {
     type: String,
-    min: 6,
+    min: 4,
     max: 1024,
   },
-  albums: [
-    {
-      type: Schema.Types.ObjectId,
-      ref: 'Album',
-    },
-  ],
+  posts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
   isOwner: {
     type: Boolean,
     default: true,
@@ -46,10 +41,15 @@ const userSchema = new Schema({
 });
 
 userSchema.methods.generateAuthToken = function () {
-  const token = jwt.sign(
-    { _id: this._id, email: this.email, studentNumber: this.studentNumber },
-    process.env.JWT_SECRET
-  );
+  const user = {
+    _id: this._id,
+    name: this.name,
+    email: this.email,
+    posts: this.posts,
+    studentNumber: this.studentNumber,
+    isOwner: this.isOwner,
+  };
+  const token = jwt.sign(user, process.env.JWT_SECRET);
   return token;
 };
 
@@ -60,11 +60,12 @@ userSchema.pre('save', async function (next) {
     .join('');
   const lastThreeDigits = this.studentNumber.slice(-3);
   const password = initials + lastThreeDigits;
+  console.log(password);
 
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(password.toLowerCase(), salt);
 
-  this.password = password;
+  this.password = hashedPassword;
   next();
 });
 

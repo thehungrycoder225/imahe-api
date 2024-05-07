@@ -1,35 +1,31 @@
 const express = require('express');
-const { Photo } = require('../schema/photo');
+const Photo = require('../models/photo');
+const auth = require('../middleware/auth');
 const fs = require('fs');
 
 const router = express.Router();
 
-router.get('/', async (req, res) => {
-  try {
-    const photos = await Photo.find();
-    res.json(photos);
-  } catch (err) {
-    res.json({ message: err });
-  }
+router.delete('/', async (req, res) => {
+  const photos = await Photo.deleteMany();
+  res.json({ message: 'All photos deleted' });
 });
 
-router.post('/', async (req, res) => {
+router.get('/', async (req, res) => {
+  const photos = await Photo.deleteMany();
+  res.json(photos);
+});
+
+router.post('/', auth, async (req, res) => {
   const photo = new Photo({
     title: req.body.title,
     description: req.body.description,
     image: req.body.image,
+    user: req.user._id,
   });
-
   try {
     const savedPhoto = await photo.save();
-    // Save the photo to the assets folder
-    fs.writeFileSync(
-      `./assets/${savedPhoto._id}.jpg`,
-      savedPhoto.image,
-      'base64'
-    );
     res.json(savedPhoto);
-  } catch (err) {
+  } catch {
     res.json({ message: err });
   }
 });
