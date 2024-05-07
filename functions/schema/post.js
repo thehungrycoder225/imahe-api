@@ -8,12 +8,14 @@ const postSchema = mongoose.Schema({
     required: true,
     min: 1,
     max: 255,
+    default: 'Untitled Post',
   },
   description: {
     type: String,
     required: true,
     min: 1,
     max: 1024,
+    default: 'No description provided.',
   },
   author: {
     type: Schema.Types.ObjectId,

@@ -70,7 +70,7 @@ route.post('/', upload, async (req, res) => {
   }
 });
 
-route.get('/', auth, async (req, res) => {
+route.get('/', async (req, res) => {
   try {
     const users = await User.find();
     const usersWithImages = users.map((user) => {
