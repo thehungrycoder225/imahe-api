@@ -1,8 +1,6 @@
 const jwt = require('jsonwebtoken');
 // const config = require('config');
 const jwtPrivateKey = 'secret';
-const { User } = require('../models/user');
-
 module.exports = async (req, res, next) => {
   const token = req.header('x-auth-token');
   if (!token) {
@@ -15,7 +13,6 @@ module.exports = async (req, res, next) => {
     // const decoded = jwt.verify(token, config.get('jwtPrivateKey'));
     const decoded = jwt.verify(token, jwtPrivateKey);
     req.user = decoded;
-    // req.user = await User.findById(decoded._id);
     next();
   } catch (ex) {
     res.status(400).send({
