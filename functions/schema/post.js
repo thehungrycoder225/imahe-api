@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-
 const Schema = mongoose.Schema;
 
 const postSchema = mongoose.Schema({
@@ -22,6 +21,12 @@ const postSchema = mongoose.Schema({
     ref: 'User',
     required: true,
   },
+  image: {
+    type: Buffer,
+  },
+  url: {
+    type: String,
+  },
   comments: [
     {
       type: Schema.Types.ObjectId,
@@ -37,6 +42,7 @@ const postSchema = mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now,
+    FormData: 'YYYY-MM-DD',
   },
   updatedAt: {
     type: Date,

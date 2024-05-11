@@ -1,15 +1,20 @@
 const express = require('express');
-const route = express.Router();
-const { User } = require('../models/user');
-const { validate } = require('../models/user');
-const auth = require('../middleware/auth');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
+const { User, validate } = require('../models/user');
+const auth = require('../middleware/auth');
 const path = require('path');
 const fs = require('fs');
+const tinify = require('tinify');
+
+const route = express.Router();
+tinify.key = 'HDHSrH7HScXbxp4gl6sZSWmcjkSBsQDd';
+tinify.proxy = 'http://user:pass@192.168.0.1:8080';
+
 const generateAuthToken = (id) => {
   return jwt.sign({ _id: id }, process.env.JWT_SECRET);
 };
+
 // Set storage engine
 const storage = multer.diskStorage({
   destination: 'assets/images',
@@ -22,7 +27,7 @@ const storage = multer.diskStorage({
 
 // Initialize upload
 const upload = multer({
-  storage: storage,
+  storage,
   limits: { fileSize: 1000000 },
 }).single('image');
 
@@ -35,14 +40,21 @@ route.post('/', upload, async (req, res) => {
       });
     }
 
-    const existingUser = await User.findOne({
-      email: req.body.email,
+    const existingEmailUser = await User.findOne({ email: req.body.email });
+    const existingStudentNumberUser = await User.findOne({
       studentNumber: req.body.studentNumber,
     });
 
-    if (existingUser) {
+    if (existingEmailUser) {
       return res.status(400).send({
-        message: 'User already exists...',
+        message: 'Email already exists. Please choose a different email.',
+      });
+    }
+
+    if (existingStudentNumberUser) {
+      return res.status(400).send({
+        message:
+          'Student Number is already associated with another user. Please enter a different student number.',
       });
     }
 
@@ -50,23 +62,34 @@ route.post('/', upload, async (req, res) => {
     if (req.file) {
       const fileName =
         'image-' + req.body.studentNumber + path.extname(req.file.originalname);
-      fs.rename(
-        req.file.path,
-        path.join(req.file.destination, fileName),
-        function (err) {
-          if (err) throw err;
-        }
-      );
+
+      await new Promise((resolve, reject) => {
+        fs.rename(
+          req.file.path,
+          path.join(req.file.destination, fileName),
+          (err) => {
+            if (err) reject(err);
+            else resolve();
+          }
+        );
+      }).catch((error) => {
+        console.error(error);
+        return res
+          .status(500)
+          .send({ message: 'An error occurred while renaming the file.' });
+      });
       user.image = fileName;
     }
     await user.save();
     const token = generateAuthToken(user._id);
-    res.header('x-auth-token', token).send(user);
-  } catch (error) {
-    res.status(500).send({
-      message: 'Something went wrong...',
-      error: error,
+    res.status(201).header('x-auth-token', token).send({
+      message: 'User created successfully.',
+      user,
+      token,
     });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).send({ message: 'An error occurred.' });
   }
 });
 
@@ -127,7 +150,7 @@ route.put('/:id', auth, upload, async (req, res) => {
       fs.rename(
         req.file.path,
         path.join(req.file.destination, fileName),
-        function (err) {
+        (err) => {
           if (err) throw err;
         }
       );
@@ -138,9 +161,16 @@ route.put('/:id', auth, upload, async (req, res) => {
   } catch (error) {
     res.status(500).send({
       message: 'Something went wrong...',
-      error: error,
+      error,
     });
   }
+});
+
+route.delete('/', async (req, res) => {
+  const users = await User.deleteMany();
+  res.send({
+    message: 'Users deleted',
+  });
 });
 
 module.exports = route;

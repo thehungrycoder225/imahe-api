@@ -15,8 +15,7 @@ const photoSchema = new Schema({
     max: 1024,
   },
   image: {
-    type: String,
-    required: true,
+    type: Buffer,
   },
   album: {
     type: Schema.Types.ObjectId,
