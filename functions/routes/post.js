@@ -199,13 +199,14 @@ const processImage = async (file, userId, studentNumber, postNumber) => {
 };
 
 // Set storage engine
-const imageDir = path.join(__dirname, '..', 'tmp');
+const imgDir = '/tmp';
+// const imageDir = path.join(__dirname, '..', 'tmp');
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    if (!fs.existsSync(imageDir)) {
-      fs.mkdirSync(imageDir);
+    if (!fs.existsSync(imgDir)) {
+      fs.mkdirSync(imgDir);
     }
-    cb(null, imageDir);
+    cb(null, imgDir);
   },
 });
 

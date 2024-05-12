@@ -54,7 +54,8 @@ app.use('/.netlify/functions/api/auth/login', authRoute);
 //   express.static(path.join(__dirname, '..', 'assets', 'images'))
 // );
 
-const imageDir = path.join(__dirname, 'tmp');
+const imageDir = '/tmp';
+// const imageDir = path.join(__dirname, 'tmp');
 app.use('/tmp', express.static(imageDir));
 
 app.listen(3000, () => console.log('Server is running on port 3000...'));
