@@ -4,7 +4,6 @@ const mongoose = require('mongoose');
 const serverless = require('serverless-http');
 const dotenv = require('dotenv');
 const userRoute = require('./routes/user');
-const photoRoute = require('./routes/photo');
 const authRoute = require('./routes/auth');
 const postRoute = require('./routes/post');
 const path = require('path');
@@ -41,10 +40,11 @@ mongoose
     })
   );
 
-// app.use('/.netlify/functions/api/users', userRoute);
-app.use('/v1/api/users', userRoute);
-app.use('/v1/api/posts', postRoute);
-app.use('/v1/api/photos', photoRoute);
+app.use('/.netlify/functions/api/users', userRoute);
+app.use('/.netlify/functions/api/posts', postRoute);
+
+// app.use('/v1/api/users', userRoute);
+// app.use('/v1/api/posts', postRoute);
 
 // Serve static files from the "assets/images" directory
 app.use(

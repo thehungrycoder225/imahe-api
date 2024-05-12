@@ -27,3 +27,5 @@ package-lock.json
 
 # Ignore yarn.lock for Yarn
 yarn.lock
+# Local Netlify folder
+.netlify
