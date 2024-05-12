@@ -8,16 +8,16 @@ const path = require('path');
 const fs = require('fs');
 const { promisify } = require('util');
 const sharp = require('sharp');
-const AWS = require('aws-sdk');
+const AWS3 = require('AWS3-sdk');
 
-AWS.config.update({
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  region: process.env.AWS3_REGION,
-  AWS_SDK_LOAD_CONFIG: 1,
+AWS3.config.update({
+  accessKeyId: process.env.AWS3_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS3_SECRET_ACCESS_KEY,
+  region: process.env.AWS33_REGION,
+  AWS3_SDK_LOAD_CONFIG: 1,
 });
 
-const s3 = new AWS.S3();
+const s3 = new AWS3.S3();
 
 route.get('/', async (req, res) => {
   try {
@@ -238,7 +238,7 @@ const processImage = async (file, userId, studentNumber, postNumber) => {
   return fileName;
 };
 
-// AWS S3 storage
+// AWS3 S3 storage
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
@@ -289,7 +289,7 @@ route.post('/', auth, upload, async (req, res) => {
       user.posts.length + 1
     );
     const params = {
-      Bucket: process.env.AWS_BUCKET_NAME,
+      Bucket: process.env.AWS33_BUCKET_NAME,
       Key: fileName,
       Body: req.file.buffer,
       ACL: 'public-read',
@@ -336,13 +336,13 @@ route.delete('/', async (req, res) => {
   const posts = await Post.deleteMany();
   const users = await User.updateMany({}, { $set: { posts: [] } });
   const params = {
-    Bucket: process.env.AWS_BUCKET_NAME,
+    Bucket: process.env.AWS3_BUCKET_NAME,
     Prefix: 'image-',
   };
   const images = await s3.listObjectsV2(params).promise();
   if (images.Contents.length) {
     const deleteParams = {
-      Bucket: process.env.AWS_BUCKET_NAME,
+      Bucket: process.env.AWS3_BUCKET_NAME,
       Delete: {
         Objects: images.Contents.map((image) => ({ Key: image.Key })),
       },

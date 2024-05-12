@@ -10,8 +10,8 @@ const sharp = require('sharp');
 const AWS = require('aws-sdk');
 
 AWS.config.update({
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  accessKeyId: process.env.AWS3_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS3_SECRET_ACCESS_KEY,
   region: process.env.AWS3_REGION,
   AWS_SDK_LOAD_CONFIG: 1,
 });
@@ -144,14 +144,14 @@ route.post('/', upload, async (req, res) => {
       );
 
       const params = {
-        Bucket: process.env.AWS_BUCKET_NAME,
+        Bucket: process.env.AWS3_BUCKET_NAME,
         Key: fileName,
         Body: outputBuffer,
         ACL: 'public-read',
         ContentType: 'image/webp',
       };
       await s3.upload(params).promise();
-      user.image = `https://${process.env.AWS_BUCKET_NAME}.s3.amazonaws.com/${fileName}`;
+      user.image = `https://${process.env.AWS3_BUCKET_NAME}.s3.amazonaws.com/${fileName}`;
     }
 
     await user.save();
