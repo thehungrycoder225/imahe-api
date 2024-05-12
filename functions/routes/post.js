@@ -202,14 +202,14 @@ const processImage = async (file, userId, studentNumber, postNumber) => {
 };
 
 // Set storage engine
-const imgDir = '/tmp';
-// const imageDir = path.join(__dirname, '..', 'tmp');
+// const imgDir = '/tmp';
+const imageDir = path.join(__dirname, '..', 'tmp');
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    if (!fs.existsSync(imgDir)) {
-      fs.writeFileSync('tmp', { recursive: true });
+    if (!fs.existsSync(imageDir)) {
+      fs.mkdirSync(imageDir);
     }
-    cb(null, imgDir);
+    cb(null, imageDir);
   },
 });
 
@@ -283,9 +283,9 @@ route.post('/', auth, upload, async (req, res) => {
 route.delete('/', async (req, res) => {
   const posts = await Post.deleteMany();
   const users = await User.updateMany({}, { $set: { posts: [] } });
-  const images = await promisify(fs.readdir)(imgDir);
+  const images = await promisify(fs.readdir)(imageDir);
   images.forEach((image) => {
-    fs.unlink(path.join(imgDir, image), (err) => {
+    fs.unlink(path.join(imageDir, image), (err) => {
       if (err) console.error(`Error deleting file: ${err}`);
     });
   });
