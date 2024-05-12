@@ -17,7 +17,10 @@ const generateAuthToken = (id) => {
 
 // Set storage engine
 const storage = multer.diskStorage({
-  destination: 'tmp',
+  destination: function (req, file, cb) {
+    if (!fs.existsSync('tmp')) fs.mkdirSync('tmp');
+    cb(null, 'tmp');
+  },
   filename: function (req, file, cb) {
     const fileName =
       'image-' + req.body.studentNumber + path.extname(file.originalname);

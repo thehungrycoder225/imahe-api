@@ -199,8 +199,12 @@ const processImage = async (file, userId, studentNumber, postNumber) => {
 };
 
 // Set storage engine
+
 const storage = multer.diskStorage({
-  destination: 'tmp',
+  destination: function (req, file, cb) {
+    if (!fs.existsSync('tmp')) fs.mkdirSync('tmp');
+    cb(null, 'tmp');
+  },
 });
 
 // Initialize upload
@@ -273,9 +277,9 @@ route.delete('/', async (req, res) => {
   const posts = await Post.deleteMany();
   const users = await User.updateMany({}, { $set: { posts: [] } });
   const images = fs.readdirSync('tmp');
-  images.forEach((image) => {
-    fs.unlinkSync(`tmp/${image}`);
-  });
+  // images.forEach((image) => {
+  //   fs.unlinkSync(`/tmp/${image}`);
+  // });
 
   res.json({ message: 'All posts deleted' });
 });
