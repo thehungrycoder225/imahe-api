@@ -291,7 +291,7 @@ route.post('/', auth, upload, async (req, res) => {
       user.posts.length + 1
     );
     const params = {
-      Bucket: process.env.AWS33_BUCKET_NAME,
+      Bucket: process.env.AWS3_BUCKET_NAME,
       Key: fileName,
       Body: req.file.buffer,
       ACL: 'public-read',
