@@ -220,26 +220,55 @@ route.post('/:id/unlike', auth, async (req, res) => {
 //   },
 // }).single('image');
 
+// const processImage = async (file, userId, studentNumber, postNumber) => {
+//   const fileName = `image-${userId}-${studentNumber}-${postNumber}.webp`;
+//   const image = sharp(file.buffer);
+//   const metadata = await image.metadata();
+
+//   if (metadata.width > 1024 || metadata.height > 1024) {
+//     image.resize(1024, 1024, { fit: 'inside' });
+//   }
+
+//   // await image.webp().toFile(path.join(file.destination, fileName));
+//   await image.webp().toBuffer();
+
+//   // fs.unlink(file.path, (err) => {
+//   //   if (err) console.error(`Error deleting file: ${err}`);
+//   // });
+
+//   return fileName;
+// };
+
 const processImage = async (file, userId, studentNumber, postNumber) => {
   const fileName = `image-${userId}-${studentNumber}-${postNumber}.webp`;
-  const image = sharp(file.buffer);
+  let image = sharp(file.buffer);
   const metadata = await image.metadata();
 
   if (metadata.width > 1024 || metadata.height > 1024) {
-    image.resize(1024, 1024, { fit: 'inside' });
+    image = image.resize(1024, 1024, { fit: 'inside' });
   }
 
-  // await image.webp().toFile(path.join(file.destination, fileName));
-  await image.webp().toBuffer();
-
-  // fs.unlink(file.path, (err) => {
-  //   if (err) console.error(`Error deleting file: ${err}`);
-  // });
-
-  return fileName;
+  const outputBuffer = await image.webp().toBuffer();
+  return { fileName, outputBuffer };
 };
 
 // AWS3 S3 storage
+// const storage = multer.memoryStorage();
+// const upload = multer({
+//   storage,
+//   limits: {
+//     fileSize: 1024 * 1024 * 5, // 5MB
+//   },
+//   fileFilter: (req, file, cb) => {
+//     if (file.mimetype === 'image/jpeg' || file.mimetype === 'image/png') {
+//       cb(null, true); // accept the file
+//     } else {
+//       cb(null, false); // reject the file
+//       cb(new Error('Invalid file type. Only JPEG and PNG are allowed.'));
+//     }
+//   },
+// }).single('image');
+
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
@@ -247,11 +276,11 @@ const upload = multer({
     fileSize: 1024 * 1024 * 5, // 5MB
   },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'image/jpeg' || file.mimetype === 'image/png') {
+    const allowedMimes = ['image/jpeg', 'image/png'];
+    if (allowedMimes.includes(file.mimetype)) {
       cb(null, true); // accept the file
     } else {
-      cb(null, false); // reject the file
-      cb(new Error('Invalid file type. Only JPEG and PNG are allowed.'));
+      cb(new Error('Invalid file type. Only JPEG and PNG are allowed.'), false); // reject the file
     }
   },
 }).single('image');
@@ -283,12 +312,13 @@ route.post('/', auth, upload, async (req, res) => {
         .json({ success: false, message: 'No file provided' });
     }
 
-    const fileName = await processImage(
+    const { fileName, outputBuffer } = await processImage(
       req.file,
       user._id,
       user.studentNumber,
       user.posts.length + 1
     );
+
     const params = {
       Bucket: process.env.AWS3_BUCKET_NAME,
       Key: fileName,
