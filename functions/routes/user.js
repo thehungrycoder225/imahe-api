@@ -8,6 +8,8 @@ const fs = require('fs');
 const route = express.Router();
 const sharp = require('sharp');
 const AWS = require('aws-sdk');
+const dotenv = require('dotenv');
+dotenv.config();
 
 AWS.config.update({
   accessKeyId: process.env.AWS3_ACCESS_KEY_ID,
