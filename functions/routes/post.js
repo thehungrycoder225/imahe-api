@@ -8,6 +8,16 @@ const path = require('path');
 const fs = require('fs');
 const { promisify } = require('util');
 const sharp = require('sharp');
+const AWS = require('aws-sdk');
+
+AWS.config.update({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS3_REGION,
+  AWS_SDK_LOAD_CONFIG: 1,
+});
+
+const s3 = new AWS.S3();
 
 route.get('/', async (req, res) => {
   try {
@@ -110,9 +120,7 @@ route.get('/author/:authorId', async (req, res) => {
     );
 
     if (!posts.length) {
-      return res
-        .status(404)
-        .json({ message: 'No posts found for this author' });
+      return res.status(404).json({ error: 'No posts found' });
     }
 
     const postsImages = posts.map((post) => {
@@ -183,37 +191,55 @@ route.post('/:id/unlike', auth, async (req, res) => {
   }
 });
 
+// Set storage engine
+// const imgDir = '/tmp';
+// const imageDir = path.join(__dirname, '..', 'tmp');
+// const storage = multer.diskStorage({
+//   destination: function (req, file, cb) {
+//     if (!fs.existsSync(imageDir)) {
+//       fs.mkdirSync(imageDir);
+//     }
+//     cb(null, imageDir);
+//   },
+// });
+
+// Initialize upload
+// const upload = multer({
+//   storage,
+//   limits: {
+//     fileSize: 1024 * 1024 * 5, // 5MB
+//   },
+//   fileFilter: (req, file, cb) => {
+//     if (file.mimetype === 'image/jpeg' || file.mimetype === 'image/png') {
+//       cb(null, true); // accept the file
+//     } else {
+//       cb(null, false); // reject the file
+//       cb(new Error('Invalid file type. Only JPEG and PNG are allowed.'));
+//     }
+//   },
+// }).single('image');
+
 const processImage = async (file, userId, studentNumber, postNumber) => {
   const fileName = `image-${userId}-${studentNumber}-${postNumber}.webp`;
-  const image = sharp(file.path);
+  const image = sharp(file.buffer);
   const metadata = await image.metadata();
 
   if (metadata.width > 1024 || metadata.height > 1024) {
     image.resize(1024, 1024, { fit: 'inside' });
   }
 
-  await image.webp().toFile(path.join(file.destination, fileName));
+  // await image.webp().toFile(path.join(file.destination, fileName));
+  await image.webp().toBuffer();
 
-  fs.unlink(file.path, (err) => {
-    if (err) console.error(`Error deleting file: ${err}`);
-  });
+  // fs.unlink(file.path, (err) => {
+  //   if (err) console.error(`Error deleting file: ${err}`);
+  // });
 
   return fileName;
 };
 
-// Set storage engine
-// const imgDir = '/tmp';
-const imageDir = path.join(__dirname, '..', 'tmp');
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    if (!fs.existsSync(imageDir)) {
-      fs.mkdirSync(imageDir);
-    }
-    cb(null, imageDir);
-  },
-});
-
-// Initialize upload
+// AWS S3 storage
+const storage = multer.memoryStorage();
 const upload = multer({
   storage,
   limits: {
@@ -262,17 +288,43 @@ route.post('/', auth, upload, async (req, res) => {
       user.studentNumber,
       user.posts.length + 1
     );
+    const params = {
+      Bucket: process.env.AWS_BUCKET_NAME,
+      Key: fileName,
+      Body: req.file.buffer,
+      ACL: 'public-read',
+      ContentType: 'image/webp', // Set the Content-Type
+    };
 
-    post.image = fileName;
-    post.url = `${req.protocol}://${req.get('host')}/tmp/${fileName}`;
-
-    const savedPost = await post.save();
-    user.posts.push(savedPost._id);
-    await user.save();
-    console.log(savedPost);
-    res.status(201).send({
-      message: 'Post created successfully',
-      post: savedPost,
+    s3.upload(params, (err, data) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).send(err);
+      }
+      post.image = fileName;
+      post.url = data.Location;
+      post
+        .save()
+        .then((savedPost) => {
+          user.posts.push(savedPost._id);
+          user
+            .save()
+            .then(() => {
+              console.log(savedPost);
+              res.status(201).send({
+                message: 'Post created successfully',
+                post: savedPost,
+              });
+            })
+            .catch((err) => {
+              console.error(err);
+              res.status(500).json({ message: err.message });
+            });
+        })
+        .catch((err) => {
+          console.error(err);
+          res.status(500).json({ message: err.message });
+        });
     });
   } catch (err) {
     console.error(err);
@@ -283,12 +335,27 @@ route.post('/', auth, upload, async (req, res) => {
 route.delete('/', async (req, res) => {
   const posts = await Post.deleteMany();
   const users = await User.updateMany({}, { $set: { posts: [] } });
-  const images = await promisify(fs.readdir)(imageDir);
-  images.forEach((image) => {
-    fs.unlink(path.join(imageDir, image), (err) => {
-      if (err) console.error(`Error deleting file: ${err}`);
-    });
-  });
+  const params = {
+    Bucket: process.env.AWS_BUCKET_NAME,
+    Prefix: 'image-',
+  };
+  const images = await s3.listObjectsV2(params).promise();
+  if (images.Contents.length) {
+    const deleteParams = {
+      Bucket: process.env.AWS_BUCKET_NAME,
+      Delete: {
+        Objects: images.Contents.map((image) => ({ Key: image.Key })),
+      },
+    };
+    await s3.deleteObjects(deleteParams).promise();
+  }
+
+  // const images = await promisify(fs.readdir)(imageDir);
+  // images.forEach((image) => {
+  //   fs.unlink(path.join(imageDir, image), (err) => {
+  //     if (err) console.error(`Error deleting file: ${err}`);
+  //   });
+  // });
 
   res.json({ message: 'All posts deleted' });
 });

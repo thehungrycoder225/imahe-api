@@ -40,13 +40,13 @@ mongoose
     })
   );
 
-app.use('/.netlify/functions/api/users', userRoute);
-app.use('/.netlify/functions/api/posts', postRoute);
-app.use('/.netlify/functions/api/auth/login', authRoute);
+// app.use('/.netlify/functions/api/users', userRoute);
+// app.use('/.netlify/functions/api/posts', postRoute);
+// app.use('/.netlify/functions/api/auth/login', authRoute);// Create a server object
 
-// app.use('/v1/api/users', userRoute);
-// app.use('/v1/api/posts', postRoute);
-// app.use('/v1/api/auth/login', authRoute);
+app.use('/v1/api/users', userRoute);
+app.use('/v1/api/posts', postRoute);
+app.use('/v1/api/auth/login', authRoute);
 
 // Serve static files from the "assets/images" directory
 // app.use(
@@ -54,8 +54,8 @@ app.use('/.netlify/functions/api/auth/login', authRoute);
 //   express.static(path.join(__dirname, '..', 'assets', 'images'))
 // );
 
-const imageDir = '/tmp';
-// const imageDir = path.join(__dirname, '/tmp');
+// const imageDir = '/tmp';
+const imageDir = path.join(__dirname, '/tmp');
 console.log(imageDir);
 app.use('/tmp', express.static(imageDir));
 
