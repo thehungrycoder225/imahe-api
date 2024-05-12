@@ -266,6 +266,7 @@ route.post('/', auth, upload, async (req, res) => {
     const savedPost = await post.save();
     user.posts.push(savedPost._id);
     await user.save();
+    console.log(savedPost);
     res.status(201).send({
       message: 'Post created successfully',
       post: savedPost,
