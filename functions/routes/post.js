@@ -8,16 +8,16 @@ const path = require('path');
 const fs = require('fs');
 const { promisify } = require('util');
 const sharp = require('sharp');
-const AWS3 = require('AWS3-sdk');
+const AWS = require('aws-sdk');
 
-AWS3.config.update({
+AWS.config.update({
   accessKeyId: process.env.AWS3_ACCESS_KEY_ID,
   secretAccessKey: process.env.AWS3_SECRET_ACCESS_KEY,
   region: process.env.AWS33_REGION,
   AWS3_SDK_LOAD_CONFIG: 1,
 });
 
-const s3 = new AWS3.S3();
+const s3 = new AWS.S3();
 
 route.get('/', async (req, res) => {
   try {
