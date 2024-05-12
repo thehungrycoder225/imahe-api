@@ -9,27 +9,6 @@ const fs = require('fs');
 const { promisify } = require('util');
 const sharp = require('sharp');
 
-// Set storage engine
-const storage = multer.diskStorage({
-  destination: 'assets/images',
-});
-
-// Initialize upload
-const upload = multer({
-  storage,
-  limits: {
-    fileSize: 1024 * 1024 * 5, // 5MB
-  },
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'image/jpeg' || file.mimetype === 'image/png') {
-      cb(null, true); // accept the file
-    } else {
-      cb(null, false); // reject the file
-      cb(new Error('Invalid file type. Only JPEG and PNG are allowed.'));
-    }
-  },
-}).single('image');
-
 route.get('/', async (req, res) => {
   try {
     const {
@@ -69,6 +48,11 @@ route.get('/', async (req, res) => {
       .sort(sort);
 
     const postsImages = posts.map((post) => {
+      const totalLikes = posts.reduce(
+        (sum, post) => sum + post.likes.length,
+        0
+      );
+      const totalViews = posts.reduce((sum, post) => sum + post.views, 0);
       const postImage = post.toObject();
       const postNumber = post.author.posts.findIndex(
         (postId) => postId.toString() === post._id.toString()
@@ -99,6 +83,8 @@ route.get('/:id', async (req, res) => {
     if (!post) {
       return res.status(404).json({ message: 'Post not found' });
     }
+    post.views += 1; // increment views
+    await post.save();
 
     const postImage = post.toObject();
     const postNumber = post.author.posts.findIndex(
@@ -117,13 +103,96 @@ route.get('/:id', async (req, res) => {
   }
 });
 
+route.get('/author/:authorId', async (req, res) => {
+  try {
+    const posts = await Post.find({ author: req.params.authorId }).populate(
+      'author',
+      'studentNumber name posts'
+    );
+
+    if (!posts.length) {
+      return res
+        .status(404)
+        .json({ message: 'No posts found for this author' });
+    }
+
+    const postsImages = posts.map((post) => {
+      const postImage = post.toObject();
+      const postNumber = post.author.posts.findIndex(
+        (postId) => postId.toString() === post._id.toString()
+      );
+
+      postImage.image = `${req.protocol}://${req.get(
+        'host'
+      )}/assets/images/image-${post.author._id}-${post.author.studentNumber}-${
+        postNumber + 1
+      }.webp`;
+
+      return postImage;
+    });
+
+    res.json(postsImages);
+  } catch (error) {
+    res.status(500).json({ error: 'An error occurred while fetching posts' });
+  }
+});
+
+route.post('/:id/like', auth, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    // Check if the user has already liked the post
+    if (post.likes.includes(req.user._id)) {
+      return res
+        .status(400)
+        .json({ error: 'You have already liked this post' });
+    }
+
+    post.likes.push(req.user._id);
+    await post.save();
+
+    res.json({ message: 'Post liked successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'An error occurred while liking the post' });
+  }
+});
+
+route.post('/:id/unlike', auth, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    // Check if the user has liked the post
+    if (!post.likes.includes(req.user._id)) {
+      return res.status(400).json({ error: 'You have not liked this post' });
+    }
+
+    post.likes = post.likes.filter(
+      (like) => like.toString() !== req.user._id.toString()
+    );
+    await post.save();
+    res.json({ message: 'Post unliked successfully' });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ error: 'An error occurred while unliking the post' });
+  }
+});
+
 const processImage = async (file, userId, studentNumber, postNumber) => {
   const fileName = `image-${userId}-${studentNumber}-${postNumber}.webp`;
   const image = sharp(file.path);
   const metadata = await image.metadata();
 
   if (metadata.width > 1024 || metadata.height > 1024) {
-    await image.resize(1024, 1024, { fit: 'inside' });
+    image.resize(1024, 1024, { fit: 'inside' });
   }
 
   await image.webp().toFile(path.join(file.destination, fileName));
@@ -134,6 +203,27 @@ const processImage = async (file, userId, studentNumber, postNumber) => {
 
   return fileName;
 };
+
+// Set storage engine
+const storage = multer.diskStorage({
+  destination: 'assets/images',
+});
+
+// Initialize upload
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 1024 * 1024 * 5, // 5MB
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'image/jpeg' || file.mimetype === 'image/png') {
+      cb(null, true); // accept the file
+    } else {
+      cb(null, false); // reject the file
+      cb(new Error('Invalid file type. Only JPEG and PNG are allowed.'));
+    }
+  },
+}).single('image');
 
 route.post('/', auth, upload, async (req, res) => {
   const { error } = validatePost(req.body);
@@ -175,7 +265,7 @@ route.post('/', auth, upload, async (req, res) => {
     const savedPost = await post.save();
     user.posts.push(savedPost._id);
     await user.save();
-    res.send({
+    res.status(201).send({
       message: 'Post created successfully',
       post: savedPost,
     });

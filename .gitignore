@@ -4,6 +4,7 @@ node_modules/
 # Ignore build artifacts
 build/
 dist/
+assets/
 
 # Ignore environment-specific files
 .env
