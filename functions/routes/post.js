@@ -47,6 +47,9 @@ route.get('/', async (req, res) => {
       .limit(parseInt(limit))
       .sort(sort);
 
+    const imageUri = `${req.protocol}://${req.get('host')}/tmp/`;
+    console.log(imageUri);
+
     const postsImages = posts.map((post) => {
       const totalLikes = posts.reduce(
         (sum, post) => sum + post.likes.length,
@@ -58,9 +61,9 @@ route.get('/', async (req, res) => {
         (postId) => postId.toString() === post._id.toString()
       );
 
-      postImage.image = `${req.protocol}://${req.get('host')}/tmp/image-${
-        post.author._id
-      }-${post.author.studentNumber}-${postNumber + 1}.webp`;
+      postImage.image = `${imageUri}image-${post.author._id}-${
+        post.author.studentNumber
+      }-${postNumber + 1}.webp`;
 
       return postImage;
     });
@@ -204,7 +207,7 @@ const imgDir = '/tmp';
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     if (!fs.existsSync(imgDir)) {
-      fs.mkdirSync(imgDir);
+      fs.writeFileSync('tmp', { recursive: true });
     }
     cb(null, imgDir);
   },
@@ -280,9 +283,9 @@ route.post('/', auth, upload, async (req, res) => {
 route.delete('/', async (req, res) => {
   const posts = await Post.deleteMany();
   const users = await User.updateMany({}, { $set: { posts: [] } });
-  const images = await promisify(fs.readdir)(imageDir);
+  const images = await promisify(fs.readdir)(imgDir);
   images.forEach((image) => {
-    fs.unlink(path.join(imageDir, image), (err) => {
+    fs.unlink(path.join(imgDir, image), (err) => {
       if (err) console.error(`Error deleting file: ${err}`);
     });
   });
