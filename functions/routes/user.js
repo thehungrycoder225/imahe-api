@@ -17,7 +17,7 @@ const generateAuthToken = (id) => {
 
 // Set storage engine
 const storage = multer.diskStorage({
-  destination: 'assets/images',
+  destination: 'tmp',
   filename: function (req, file, cb) {
     const fileName =
       'image-' + req.body.studentNumber + path.extname(file.originalname);
@@ -98,9 +98,9 @@ route.get('/', async (req, res) => {
     const users = await User.find();
     const usersWithImages = users.map((user) => {
       const userWithImage = user.toObject();
-      userWithImage.image = `${req.protocol}://${req.get(
-        'host'
-      )}/assets/images/image-${user.studentNumber}.jpg`;
+      userWithImage.image = `${req.protocol}://${req.get('host')}/tmp/image-${
+        user.studentNumber
+      }.jpg`;
       return userWithImage;
     });
     res.send(usersWithImages);
@@ -113,9 +113,9 @@ route.get('/:id', auth, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
     const userWithImage = user.toObject();
-    userWithImage.image = `${req.protocol}://${req.get(
-      'host'
-    )}/assets/images/image-${user.studentNumber}.jpg`;
+    userWithImage.image = `${req.protocol}://${req.get('host')}/tmp/image-${
+      user.studentNumber
+    }.jpg`;
     res.send(userWithImage);
   } catch (error) {
     res.status(404).send('User not found...');
