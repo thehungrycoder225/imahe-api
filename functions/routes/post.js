@@ -58,11 +58,9 @@ route.get('/', async (req, res) => {
         (postId) => postId.toString() === post._id.toString()
       );
 
-      postImage.image = `${req.protocol}://${req.get(
-        'host'
-      )}/assets/images/image-${post.author._id}-${post.author.studentNumber}-${
-        postNumber + 1
-      }.webp`;
+      postImage.image = `${req.protocol}://${req.get('host')}/tmp/image-${
+        post.author._id
+      }-${post.author.studentNumber}-${postNumber + 1}.webp`;
 
       return postImage;
     });
@@ -91,11 +89,9 @@ route.get('/:id', async (req, res) => {
       (postId) => postId.toString() === post._id.toString()
     );
 
-    postImage.image = `${req.protocol}://${req.get(
-      'host'
-    )}/assets/images/image-${post.author._id}-${post.author.studentNumber}-${
-      postNumber + 1
-    }.webp`;
+    postImage.image = `${req.protocol}://${req.get('host')}/tmp/image-${
+      post.author._id
+    }-${post.author.studentNumber}-${postNumber + 1}.webp`;
 
     res.json(postImage);
   } catch (error) {
@@ -122,11 +118,9 @@ route.get('/author/:authorId', async (req, res) => {
         (postId) => postId.toString() === post._id.toString()
       );
 
-      postImage.image = `${req.protocol}://${req.get(
-        'host'
-      )}/assets/images/image-${post.author._id}-${post.author.studentNumber}-${
-        postNumber + 1
-      }.webp`;
+      postImage.image = `${req.protocol}://${req.get('host')}/tmp/image-${
+        post.author._id
+      }-${post.author.studentNumber}-${postNumber + 1}.webp`;
 
       return postImage;
     });
@@ -206,7 +200,7 @@ const processImage = async (file, userId, studentNumber, postNumber) => {
 
 // Set storage engine
 const storage = multer.diskStorage({
-  destination: 'assets/images',
+  destination: 'tmp',
 });
 
 // Initialize upload
@@ -260,7 +254,7 @@ route.post('/', auth, upload, async (req, res) => {
     );
 
     post.image = fileName;
-    post.url = `${req.protocol}://${req.get('host')}/assets/images/${fileName}`;
+    post.url = `${req.protocol}://${req.get('host')}/tmp/${fileName}`;
 
     const savedPost = await post.save();
     user.posts.push(savedPost._id);
@@ -278,9 +272,9 @@ route.post('/', auth, upload, async (req, res) => {
 route.delete('/', async (req, res) => {
   const posts = await Post.deleteMany();
   const users = await User.updateMany({}, { $set: { posts: [] } });
-  const images = fs.readdirSync('assets/images');
+  const images = fs.readdirSync('tmp');
   images.forEach((image) => {
-    fs.unlinkSync(`assets/images/${image}`);
+    fs.unlinkSync(`tmp/${image}`);
   });
 
   res.json({ message: 'All posts deleted' });

@@ -54,10 +54,7 @@ app.use('/v1/api/auth/login', authRoute);
 //   express.static(path.join(__dirname, '..', 'assets', 'images'))
 // );
 
-app.use(
-  'assets/images',
-  express.static(path.join(__dirname, '..', 'assets', 'images'))
-);
+app.use('tmp', express.static(path.join(__dirname, 'assets', 'images')));
 
 app.listen(3000, () => console.log('Server is running on port 3000...'));
 
