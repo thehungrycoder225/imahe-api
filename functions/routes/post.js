@@ -15,10 +15,9 @@ dotenv.config();
 AWS.config.update({
   accessKeyId: process.env.AWS3_ACCESS_KEY_ID,
   secretAccessKey: process.env.AWS3_SECRET_ACCESS_KEY,
-  region: process.env.AWS33_REGION,
+  region: process.env.AWS3_REGION,
   AWS_SDK_LOAD_CONFIG: 1,
 });
-
 const s3 = new AWS.S3();
 
 route.get('/', async (req, res) => {
@@ -293,9 +292,9 @@ route.post('/', auth, upload, async (req, res) => {
     const params = {
       Bucket: process.env.AWS3_BUCKET_NAME,
       Key: fileName,
-      Body: req.file.buffer,
+      Body: outputBuffer,
       ACL: 'public-read',
-      ContentType: 'image/webp', // Set the Content-Type
+      ContentType: 'image/webp',
     };
 
     s3.upload(params, (err, data) => {
