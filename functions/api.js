@@ -40,13 +40,13 @@ mongoose
     })
   );
 
-// app.use('/.netlify/functions/api/users', userRoute);
-// app.use('/.netlify/functions/api/posts', postRoute);
-// app.use('/.netlify/functions/api/auth/login', authRoute); // Create a server object
+app.use('/.netlify/functions/api/users', userRoute);
+app.use('/.netlify/functions/api/posts', postRoute);
+app.use('/.netlify/functions/api/auth/login', authRoute); // Create a server object
 
-app.use('/v1/api/users', userRoute);
-app.use('/v1/api/posts', postRoute);
-app.use('/v1/api/auth/login', authRoute);
+// app.use('/v1/api/users', userRoute);
+// app.use('/v1/api/posts', postRoute);
+// app.use('/v1/api/auth/login', authRoute);
 
 // Serve static files from the "assets/images" directory
 // app.use(

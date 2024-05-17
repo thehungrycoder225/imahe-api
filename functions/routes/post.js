@@ -391,4 +391,90 @@ route.delete('/', async (req, res) => {
   res.json({ message: 'All posts deleted' });
 });
 
+route.put('/:id', auth, upload, async (req, res) => {
+  const { error } = validatePost(req.body);
+  if (error) {
+    return res.status(400).send({
+      message: error.details[0].message,
+    });
+  }
+
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    if (post.author.toString() !== req.user._id) {
+      return res.status(403).json({ message: 'You are not authorized' });
+    }
+
+    if (req.file) {
+      // Extract the file name from the current image URL
+      const currentImageKey = post.image.split('/').pop();
+
+      // Delete the current image from the S3 bucket
+      const deleteParams = {
+        Bucket: process.env.AWS3_BUCKET_NAME,
+        Key: currentImageKey,
+      };
+      await s3.deleteObject(deleteParams).promise();
+
+      // Process and upload the new image
+      const { fileName, outputBuffer } = await processImage(
+        req.file,
+        post._id,
+        post.author,
+        post.title
+      );
+      const uploadParams = {
+        Bucket: process.env.AWS3_BUCKET_NAME,
+        Key: fileName,
+        Body: outputBuffer,
+        ACL: 'public-read',
+        ContentType: 'image/webp',
+      };
+      await s3.upload(uploadParams).promise();
+      post.image = `https://${process.env.AWS3_BUCKET_NAME}.s3.amazonaws.com/${fileName}`;
+    }
+
+    if (req.body.title) {
+      post.title = req.body.title;
+    }
+
+    if (req.body.description) {
+      post.description = req.body.description;
+    }
+
+    await post.save();
+    res.json({ message: 'Post updated successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'An error occurred while updating post' });
+  }
+});
+
+route.delete('/:id', auth, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    if (post.author.toString() !== req.user._id) {
+      return res.status(403).json({ message: 'You are not authorized' });
+    }
+
+    const deleteParams = {
+      Bucket: process.env.AWS3_BUCKET_NAME,
+      Key: post.image.split('/').pop(),
+    };
+    await s3.deleteObject(deleteParams).promise();
+
+    await post.remove();
+    res.json({ message: 'Post deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'An error occurred while deleting post' });
+  }
+});
+
 module.exports = route;
