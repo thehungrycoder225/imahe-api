@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+const nodemailer = require('nodemailer');
+const bcrypt = require('bcrypt');
 const Schema = mongoose.Schema;
 const jwt = require('jsonwebtoken');
 const userSchema = new Schema({
@@ -54,19 +55,52 @@ userSchema.methods.generateAuthToken = function () {
 
 userSchema.pre('save', async function (next) {
   if (this.isNew) {
-    // This block will only run if the document is new
     const initials = this.name
       .split(' ')
       .map((name) => name.charAt(0))
       .join('');
     const lastThreeDigits = this.studentNumber.slice(-3);
     const password = initials + lastThreeDigits;
-    console.log(password);
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
     this.password = hashedPassword;
+
+    // Send email
+    let transporter = nodemailer.createTransport({
+      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
+      auth: {
+        user: 'go.villidane@mscmarinduque.edu.ph',
+        pass: 'zzrw uudm reoq rksu',
+      },
+    });
+
+    let mailOptions = {
+      from: 'go.villidane@mscmarinduque.edu.ph',
+      to: this.email,
+      subject: 'Welcome to Imahe Portal',
+      text: `Hello ${this.name},\n\nWelcome to Imahe Portal. Your username is your student number and your password is ${password}. \n\nRegards,\nImahe Portal Team\n login at https://imahe-portal.netlify.app/login`,
+    };
+
+    transporter.sendMail(mailOptions, function (error, info) {
+      if (error) {
+        console.log(error);
+      } else {
+        console.log('Email sent: ' + info.response);
+      }
+    });
+
+    transporter.verify(function (error, success) {
+      if (error) {
+        console.log(error);
+      } else {
+        console.log('Server is ready to take our messages');
+      }
+    });
   }
   next();
 });
