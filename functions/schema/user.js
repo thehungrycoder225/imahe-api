@@ -83,7 +83,7 @@ userSchema.pre('save', async function (next) {
       from: 'go.villidane@mscmarinduque.edu.ph',
       to: this.email,
       subject: 'Welcome to Imahe Portal',
-      text: `Hello ${this.name},\n\nWelcome to Imahe Portal. Your username is your student number and your password is ${password}. \n\nRegards,\nImahe Portal Team\n login at https://imahe-portal.netlify.app/login`,
+      text: `Hello ${this.name},\n\nWelcome to Imahe Portal. Your username is your student number ${this.studentNumber} and your password is ${password}. \n\nRegards,\nImahe Portal Team\n login at https://imahe-portal.netlify.app/login`,
     };
 
     transporter.sendMail(mailOptions, function (error, info) {
