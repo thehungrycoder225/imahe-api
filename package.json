@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon functions/api.js NODE_ENV=development",
+    "dev": "nodemon functions/api.js",
     "prod": "node functions/api.js NODE_ENV=production"
   },
   "keywords": [],

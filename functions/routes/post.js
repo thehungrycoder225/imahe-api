@@ -396,7 +396,7 @@ route.put('/:id', auth, upload, async (req, res) => {
     }
 
     await post.save();
-    res.json({ message: 'Post updated successfully' });
+    res.json({ message: 'Post updated successfully', post });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
