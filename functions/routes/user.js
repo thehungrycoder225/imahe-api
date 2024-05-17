@@ -210,38 +210,59 @@ route.delete('/:id', auth, async (req, res) => {
 });
 
 route.put('/:id', auth, upload, async (req, res) => {
-  try {
-    const { error } = validate(req.body);
-    if (error) {
-      return res.status(400).send({
-        message: error.details[0].message,
-      });
-    }
-
-    const user = await User.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-    });
-    if (!user) return res.status(404).send('User not found...');
-    if (req.file) {
-      const fileName =
-        'image-' + req.body.studentNumber + path.extname(req.file.originalname);
-      fs.rename(
-        req.file.path,
-        path.join(req.file.destination, fileName),
-        (err) => {
-          if (err) throw err;
-        }
-      );
-      user.image = fileName;
-    }
-    await user.save();
-    res.send(user);
-  } catch (error) {
-    res.status(500).send({
-      message: 'Something went wrong...',
-      error,
+  const id = req.params.id;
+  const { error } = validate(req.body);
+  if (error) {
+    return res.status(400).send({
+      message: error.details[0].message,
     });
   }
+  let user = await User.findById(id);
+  if (!user) return res.status(404).send('User not found...');
+
+  if (req.file) {
+    // Extract the file name from the current image URL
+    const currentImageKey = user.image.split('/').pop();
+
+    // Delete the current image from the S3 bucket
+    const deleteParams = {
+      Bucket: process.env.AWS3_BUCKET_NAME,
+      Key: currentImageKey,
+    };
+    await s3.deleteObject(deleteParams).promise();
+
+    // Process and upload the new image
+    const { fileName, outputBuffer } = await processImage(
+      req.file,
+      user._id,
+      user.studentNumber,
+      user.posts.length + 1
+    );
+    const uploadParams = {
+      Bucket: process.env.AWS3_BUCKET_NAME,
+      Key: fileName,
+      Body: outputBuffer,
+      ACL: 'public-read',
+      ContentType: 'image/webp',
+    };
+    await s3.upload(uploadParams).promise();
+    user.image = `https://${process.env.AWS3_BUCKET_NAME}.s3.amazonaws.com/${fileName}`;
+  }
+
+  if (req.body.email) {
+    user.email = req.body.email;
+  }
+
+  if (req.body.password) {
+    user.password = req.body.password;
+  }
+
+  user = await user.save();
+
+  res.send({
+    message: 'User updated successfully',
+    user,
+  });
 });
 
 route.delete('/', async (req, res) => {
