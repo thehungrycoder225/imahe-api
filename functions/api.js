@@ -8,24 +8,29 @@ const authRoute = require('./routes/auth');
 const postRoute = require('./routes/post');
 const path = require('path');
 
+dotenv.config();
+
 const app = express();
 app.use(cors());
-app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-bodyParser = require('body-parser');
-app.use(bodyParser.json());
-dotenv.config();
+app.use(express.json());
 
 const LOCAL_URI = 'mongodb://localhost:27017/imahe';
 
-const db = mongoose.connection;
-db.on('error', console.error.bind(console, 'connection error:'));
-db.once('open', function () {
-  console.log('Connected to Database...');
-});
-db.on('disconnected', () => console.log('Disconnected from Database...'));
-db.on('reconnected', () => console.log('Reconnected to Database...'));
-db.on('close', () => console.log('Connection to Database Closed...'));
+mongoose.connection.on(
+  'error',
+  console.error.bind(console, 'connection error:')
+);
+mongoose.connection.once('open', () => console.log('Connected to Database...'));
+mongoose.connection.on('disconnected', () =>
+  console.log('Disconnected from Database...')
+);
+mongoose.connection.on('reconnected', () =>
+  console.log('Reconnected to Database...')
+);
+mongoose.connection.on('close', () =>
+  console.log('Connection to Database Closed...')
+);
 
 mongoose
   .connect(process.env.CLOUD_URI || LOCAL_URI, {})
@@ -40,25 +45,22 @@ mongoose
     })
   );
 
-app.use('/.netlify/functions/api/users', userRoute);
-app.use('/.netlify/functions/api/posts', postRoute);
-app.use('/.netlify/functions/api/auth/login', authRoute); // Create a server object
+const apiPath =
+  process.env.NODE_ENV === 'development'
+    ? '/v1/api'
+    : '/.netlify/functions/api';
+app.use(`${apiPath}/users`, userRoute);
+app.use(`${apiPath}/posts`, postRoute);
+app.use(`${apiPath}/auth/login`, authRoute);
 
-// app.use('/v1/api/users', userRoute);
-// app.use('/v1/api/posts', postRoute);
-// app.use('/v1/api/auth/login', authRoute);
-
-// Serve static files from the "assets/images" directory
-// app.use(
-//   '/assets/images',
-//   express.static(path.join(__dirname, '..', 'assets', 'images'))
-// );
-
-// const imageDir = '/tmp';
 const imageDir = path.join(__dirname, '/tmp');
-console.log(imageDir);
 app.use('/tmp', express.static(imageDir));
 
-app.listen(3000, () => console.log('Server is running on port 3000...'));
+app.listen(process.env.PORT, () =>
+  console.log({
+    message: `Server running on ${process.env.NODE_ENV}`,
+    api: `${apiPath}:${process.env.PORT}`,
+  })
+);
 
 module.exports.handler = serverless(app);

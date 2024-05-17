@@ -53,18 +53,21 @@ userSchema.methods.generateAuthToken = function () {
 };
 
 userSchema.pre('save', async function (next) {
-  const initials = this.name
-    .split(' ')
-    .map((name) => name.charAt(0))
-    .join('');
-  const lastThreeDigits = this.studentNumber.slice(-3);
-  const password = initials + lastThreeDigits;
-  console.log(password);
+  if (this.isNew) {
+    // This block will only run if the document is new
+    const initials = this.name
+      .split(' ')
+      .map((name) => name.charAt(0))
+      .join('');
+    const lastThreeDigits = this.studentNumber.slice(-3);
+    const password = initials + lastThreeDigits;
+    console.log(password);
 
-  const salt = await bcrypt.genSalt(10);
-  const hashedPassword = await bcrypt.hash(password, salt);
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
-  this.password = hashedPassword;
+    this.password = hashedPassword;
+  }
   next();
 });
 

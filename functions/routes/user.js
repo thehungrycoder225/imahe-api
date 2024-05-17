@@ -111,6 +111,8 @@ const upload = multer({
   },
 }).single('image');
 
+// Route to create a new user
+
 route.post('/', upload, async (req, res) => {
   try {
     const { error } = validate(req.body);
@@ -155,7 +157,7 @@ route.post('/', upload, async (req, res) => {
       };
 
       await s3.upload(params).promise();
-      user.image = `https://${process.env.AWS3_BUCKET_NAME}.s3.amazonaws.com/${fileName}`;
+      user.image = `https://${process.env.AWS3_BUCKET_NAME}.s3.amazonaws.com/users/${uniqueFileName}`;
     }
 
     await user.save();
@@ -212,63 +214,68 @@ route.delete('/:id', auth, async (req, res) => {
 });
 
 route.put('/:id', auth, upload, async (req, res) => {
-  const id = req.params.id;
-  const { error } = validate(req.body);
-  if (error) {
-    return res.status(400).send({
-      message: error.details[0].message,
-    });
-  }
-  let user = await User.findById(id);
-  if (!user) return res.status(404).send('User not found...');
+  try {
+    const { error } = validate(req.body);
+    if (error) {
+      return res.status(400).send({
+        message: error.details[0].message,
+      });
+    }
 
-  if (req.file) {
-    // Extract the file name from the current image URL
-    const currentImageKey = user.image.split('/').pop();
-
-    // Delete the current image from the S3 bucket
-    const deleteParams = {
-      Bucket: process.env.AWS3_BUCKET_NAME,
-      Key: currentImageKey,
-    };
-    await s3.deleteObject(deleteParams).promise();
-
-    // Process and upload the new image
-    const { fileName, outputBuffer } = await processImage(
-      req.file,
-      user._id,
-      user.studentNumber,
-      user.posts.length + 1
+    let user = await User.findByIdAndUpdate(
+      req.params.id,
+      {
+        name: req.body.name,
+        email: req.body.email,
+      },
+      { new: true }
     );
-    const uniqueFileName = `${fileName}-${Date.now()}`;
-    const uploadParams = {
-      Bucket: process.env.AWS3_BUCKET_NAME,
-      // Add a 'users/' prefix for user profile images
-      Key: `users/${uniqueFileName}`,
-      Body: outputBuffer,
-      ACL: 'public-read',
-      ContentType: 'image/webp',
-    };
-    await s3.upload(uploadParams).promise();
 
-    // Corrected line
-    user.image = `https://${process.env.AWS3_BUCKET_NAME}.s3.amazonaws.com/users/${uniqueFileName}`;
+    if (!user) return res.status(404).send('User not found');
+
+    if (req.file) {
+      // Extract the file name from the current image URL
+      const currentImageKey = user.image.split('/').pop();
+
+      // Delete the current image from the S3 bucket
+      const deleteParams = {
+        Bucket: process.env.AWS3_BUCKET_NAME,
+        Key: currentImageKey,
+      };
+      await s3.deleteObject(deleteParams).promise();
+
+      // Process and upload the new image
+      const { fileName, outputBuffer } = await processImage(
+        req.file,
+        user._id,
+        user.studentNumber,
+        user.posts.length + 1
+      );
+      const uniqueFileName = `${fileName}-${Date.now()}`;
+      const uploadParams = {
+        Bucket: process.env.AWS3_BUCKET_NAME,
+        // Add a 'users/' prefix for user profile images
+        Key: `users/${uniqueFileName}`,
+        Body: outputBuffer,
+        ACL: 'public-read',
+        ContentType: 'image/webp',
+      };
+      await s3.upload(uploadParams).promise();
+
+      // Corrected line
+      user.image = `https://${process.env.AWS3_BUCKET_NAME}.s3.amazonaws.com/users/${uniqueFileName}`;
+    }
+
+    user = await user.save();
+
+    res.send({
+      message: 'User updated successfully',
+      user,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).send({ message: error.message });
   }
-
-  if (req.body.email) {
-    user.email = req.body.email;
-  }
-
-  if (req.body.password) {
-    user.password = req.body.password;
-  }
-
-  user = await user.save();
-
-  res.send({
-    message: 'User updated successfully',
-    user,
-  });
 });
 
 route.delete('/', async (req, res) => {

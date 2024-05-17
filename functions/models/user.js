@@ -5,8 +5,8 @@ const UserSchema = require('../schema/user');
 const User = mongoose.model('User', UserSchema);
 const validate = (user) => {
   const schema = Joi.object({
-    image: Joi.string().default(''),
-    email: Joi.string().min(6).max(255).required().email(),
+    image: Joi.string().default('').optional(),
+    email: Joi.string().min(6).max(255).email().required(),
     studentNumber: Joi.string().min(7).max(8).required(),
     name: Joi.string().min(6).max(255).required(),
   });
