@@ -88,15 +88,10 @@ route.get('/', async (req, res) => {
 
 route.get('/:id', async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id).populate(
-      'author',
-      'studentNumber name posts'
-    );
+    const post = await Post.findById(req.params.id).populate('author');
     if (!post) {
-      return res.status(404).json({ message: 'Post not found' });
+      return res.status(404).json({ error: 'Post not found' });
     }
-    post.views += 1; // increment views
-    await post.save();
 
     const postImage = post.toObject();
     const postNumber = post.author.posts.findIndex(
@@ -140,55 +135,6 @@ route.get('/author/:authorId', async (req, res) => {
     res.json(postsImages);
   } catch (error) {
     res.status(500).json({ error: 'An error occurred while fetching posts' });
-  }
-});
-
-route.post('/:id/like', auth, async (req, res) => {
-  try {
-    const post = await Post.findById(req.params.id);
-
-    if (!post) {
-      return res.status(404).json({ error: 'Post not found' });
-    }
-
-    // Check if the user has already liked the post
-    if (post.likes.includes(req.user._id)) {
-      return res
-        .status(400)
-        .json({ error: 'You have already liked this post' });
-    }
-
-    post.likes.push(req.user._id);
-    await post.save();
-
-    res.json({ message: 'Post liked successfully' });
-  } catch (error) {
-    res.status(500).json({ error: 'An error occurred while liking the post' });
-  }
-});
-
-route.post('/:id/unlike', auth, async (req, res) => {
-  try {
-    const post = await Post.findById(req.params.id);
-
-    if (!post) {
-      return res.status(404).json({ error: 'Post not found' });
-    }
-
-    // Check if the user has liked the post
-    if (!post.likes.includes(req.user._id)) {
-      return res.status(400).json({ error: 'You have not liked this post' });
-    }
-
-    post.likes = post.likes.filter(
-      (like) => like.toString() !== req.user._id.toString()
-    );
-    await post.save();
-    res.json({ message: 'Post unliked successfully' });
-  } catch (error) {
-    res
-      .status(500)
-      .json({ error: 'An error occurred while unliking the post' });
   }
 });
 
@@ -239,19 +185,6 @@ route.post('/:id/unlike', auth, async (req, res) => {
 //   return fileName;
 // };
 
-const processImage = async (file, userId, studentNumber, postNumber) => {
-  const fileName = `image-${userId}-${studentNumber}-${postNumber}.webp`;
-  let image = sharp(file.buffer);
-  const metadata = await image.metadata();
-
-  if (metadata.width > 1024 || metadata.height > 1024) {
-    image = image.resize(1024, 1024, { fit: 'inside' });
-  }
-
-  const outputBuffer = await image.webp().toBuffer();
-  return { fileName, outputBuffer };
-};
-
 // AWS3 S3 storage
 // const storage = multer.memoryStorage();
 // const upload = multer({
@@ -268,6 +201,19 @@ const processImage = async (file, userId, studentNumber, postNumber) => {
 //     }
 //   },
 // }).single('image');
+
+const processImage = async (file, userId, studentNumber, postNumber) => {
+  const fileName = `image-${userId}-${studentNumber}-${postNumber}.webp`;
+  let image = sharp(file.buffer);
+  const metadata = await image.metadata();
+
+  if (metadata.width > 1024 || metadata.height > 1024) {
+    image = image.resize(1024, 1024, { fit: 'inside' });
+  }
+
+  const outputBuffer = await image.webp().toBuffer();
+  return { fileName, outputBuffer };
+};
 
 const storage = multer.memoryStorage();
 const upload = multer({
@@ -319,9 +265,13 @@ route.post('/', auth, upload, async (req, res) => {
       user.posts.length + 1
     );
 
+    // Append a timestamp to the filename
+    const uniqueFileName = `${fileName}-${Date.now()}`;
+
     const params = {
       Bucket: process.env.AWS3_BUCKET_NAME,
-      Key: fileName,
+      // Add a 'posts/' prefix for post images
+      Key: `posts/${uniqueFileName}`,
       Body: outputBuffer,
       ACL: 'public-read',
       ContentType: 'image/webp',
@@ -332,8 +282,11 @@ route.post('/', auth, upload, async (req, res) => {
         console.error(err);
         return res.status(500).send(err);
       }
-      post.image = fileName;
+
+      // Set post.image after the uniqueFileName is created
+      post.image = uniqueFileName;
       post.url = data.Location;
+
       post
         .save()
         .then((savedPost) => {
@@ -368,7 +321,7 @@ route.delete('/', async (req, res) => {
   const users = await User.updateMany({}, { $set: { posts: [] } });
   const params = {
     Bucket: process.env.AWS3_BUCKET_NAME,
-    Prefix: 'image-',
+    Prefix: 'posts/', // Only delete images in the 'posts/' prefix
   };
   const images = await s3.listObjectsV2(params).promise();
   if (images.Contents.length) {
@@ -380,13 +333,6 @@ route.delete('/', async (req, res) => {
     };
     await s3.deleteObjects(deleteParams).promise();
   }
-
-  // const images = await promisify(fs.readdir)(imageDir);
-  // images.forEach((image) => {
-  //   fs.unlink(path.join(imageDir, image), (err) => {
-  //     if (err) console.error(`Error deleting file: ${err}`);
-  //   });
-  // });
 
   res.json({ message: 'All posts deleted' });
 });
@@ -411,7 +357,7 @@ route.put('/:id', auth, upload, async (req, res) => {
 
     if (req.file) {
       // Extract the file name from the current image URL
-      const currentImageKey = post.image.split('/').pop();
+      const currentImageKey = post.url.split('/').pop();
 
       // Delete the current image from the S3 bucket
       const deleteParams = {
@@ -427,21 +373,24 @@ route.put('/:id', auth, upload, async (req, res) => {
         post.author,
         post.title
       );
+      const uniqueFileName = `${fileName}-${Date.now()}`;
       const uploadParams = {
         Bucket: process.env.AWS3_BUCKET_NAME,
-        Key: fileName,
+        // Add a 'posts/' prefix for post images
+        Key: `posts/${uniqueFileName}`,
         Body: outputBuffer,
         ACL: 'public-read',
         ContentType: 'image/webp',
       };
       await s3.upload(uploadParams).promise();
-      post.image = `https://${process.env.AWS3_BUCKET_NAME}.s3.amazonaws.com/${fileName}`;
+
+      // Corrected line
+      post.url = `https://${process.env.AWS3_BUCKET_NAME}.s3.amazonaws.com/posts/${uniqueFileName}`;
     }
 
     if (req.body.title) {
       post.title = req.body.title;
     }
-
     if (req.body.description) {
       post.description = req.body.description;
     }
@@ -449,7 +398,7 @@ route.put('/:id', auth, upload, async (req, res) => {
     await post.save();
     res.json({ message: 'Post updated successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'An error occurred while updating post' });
+    res.status(500).json({ message: error.message });
   }
 });
 
@@ -466,14 +415,19 @@ route.delete('/:id', auth, async (req, res) => {
 
     const deleteParams = {
       Bucket: process.env.AWS3_BUCKET_NAME,
-      Key: post.image.split('/').pop(),
+      Key: post.url.split('/').pop(),
     };
     await s3.deleteObject(deleteParams).promise();
 
-    await post.remove();
+    // Remove the post ID from the user's posts array
+    const user = await User.findById(req.user._id);
+    user.posts.pull(req.params.id);
+    await user.save();
+
+    await post.deleteOne();
     res.json({ message: 'Post deleted successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'An error occurred while deleting post' });
+    res.status(500).json({ message: error.message });
   }
 });
 

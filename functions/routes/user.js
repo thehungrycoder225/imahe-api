@@ -144,14 +144,16 @@ route.post('/', upload, async (req, res) => {
         user.studentNumber,
         user.posts.length + 1
       );
-
+      const uniqueFileName = `${fileName}-${Date.now()}`;
       const params = {
         Bucket: process.env.AWS3_BUCKET_NAME,
-        Key: fileName,
+        // Add a 'users/' prefix for user profile images
+        Key: `users/${uniqueFileName}`,
         Body: outputBuffer,
         ACL: 'public-read',
         ContentType: 'image/webp',
       };
+
       await s3.upload(params).promise();
       user.image = `https://${process.env.AWS3_BUCKET_NAME}.s3.amazonaws.com/${fileName}`;
     }
@@ -238,15 +240,19 @@ route.put('/:id', auth, upload, async (req, res) => {
       user.studentNumber,
       user.posts.length + 1
     );
+    const uniqueFileName = `${fileName}-${Date.now()}`;
     const uploadParams = {
       Bucket: process.env.AWS3_BUCKET_NAME,
-      Key: fileName,
+      // Add a 'users/' prefix for user profile images
+      Key: `users/${uniqueFileName}`,
       Body: outputBuffer,
       ACL: 'public-read',
       ContentType: 'image/webp',
     };
     await s3.upload(uploadParams).promise();
-    user.image = `https://${process.env.AWS3_BUCKET_NAME}.s3.amazonaws.com/${fileName}`;
+
+    // Corrected line
+    user.image = `https://${process.env.AWS3_BUCKET_NAME}.s3.amazonaws.com/users/${uniqueFileName}`;
   }
 
   if (req.body.email) {
