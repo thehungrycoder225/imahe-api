@@ -91,7 +91,11 @@ const processImage = async (file, userId, studentNumber, postNumber) => {
     image = image.resize(1024, 1024, { fit: 'inside' });
   }
 
-  const outputBuffer = await image.webp().toBuffer();
+  // Use sharp to correct the orientation of the image
+  const outputBuffer = await sharp(file.buffer)
+    .rotate() // this will use the EXIF data to correct the image orientation
+    .webp() // convert to webp
+    .toBuffer();
   return { fileName, outputBuffer };
 };
 
