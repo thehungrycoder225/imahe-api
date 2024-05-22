@@ -24,7 +24,6 @@ route.get('/', async (req, res) => {
   try {
     const {
       page = 1,
-      limit = 10,
       sortField = 'title',
       sortOrder = 'asc',
       title,
@@ -72,9 +71,8 @@ route.get('/', async (req, res) => {
         (postId) => postId.toString() === post._id.toString()
       );
 
-      postImage.image = `${imageUri}image-${post.author._id}-${
-        post.author.studentNumber
-      }-${postNumber + 1}.webp`;
+      postImage.image = `${imageUri}image-${post.author._id}-${post.author.studentNumber
+        }-${postNumber + 1}.webp`;
 
       return postImage;
     });
@@ -98,9 +96,8 @@ route.get('/:id', async (req, res) => {
       (postId) => postId.toString() === post._id.toString()
     );
 
-    postImage.image = `${req.protocol}://${req.get('host')}/tmp/image-${
-      post.author._id
-    }-${post.author.studentNumber}-${postNumber + 1}.webp`;
+    postImage.image = `${req.protocol}://${req.get('host')}/tmp/image-${post.author._id
+      }-${post.author.studentNumber}-${postNumber + 1}.webp`;
 
     res.json(postImage);
   } catch (error) {
@@ -125,9 +122,8 @@ route.get('/author/:authorId', async (req, res) => {
         (postId) => postId.toString() === post._id.toString()
       );
 
-      postImage.image = `${req.protocol}://${req.get('host')}/tmp/image-${
-        post.author._id
-      }-${post.author.studentNumber}-${postNumber + 1}.webp`;
+      postImage.image = `${req.protocol}://${req.get('host')}/tmp/image-${post.author._id
+        }-${post.author.studentNumber}-${postNumber + 1}.webp`;
 
       return postImage;
     });
