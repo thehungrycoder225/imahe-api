@@ -26,13 +26,14 @@ route.get('/', async (req, res) => {
       page = 1,
       sortField = 'title',
       sortOrder = 'asc',
-      limit = 100,
+      limit = 10,
       title,
       authorName,
     } = req.query;
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const totalPosts = await Post.countDocuments();
+    const totalPages = Math.ceil(totalPosts / parseInt(limit));
 
     // Create filter object
     const filter = {};
@@ -72,13 +73,14 @@ route.get('/', async (req, res) => {
         (postId) => postId.toString() === post._id.toString()
       );
 
-      postImage.image = `${imageUri}image-${post.author._id}-${post.author.studentNumber
-        }-${postNumber + 1}.webp`;
+      postImage.image = `${imageUri}image-${post.author._id}-${
+        post.author.studentNumber
+      }-${postNumber + 1}.webp`;
 
       return postImage;
     });
 
-    res.json({ totalPosts, postsImages });
+    res.json({ totalPosts, postsImages, totalPages });
   } catch (error) {
     console.error(error); // Log the error for debugging
     res.status(500).json({ error: 'An error occurred while fetching posts' });
@@ -97,8 +99,9 @@ route.get('/:id', async (req, res) => {
       (postId) => postId.toString() === post._id.toString()
     );
 
-    postImage.image = `${req.protocol}://${req.get('host')}/tmp/image-${post.author._id
-      }-${post.author.studentNumber}-${postNumber + 1}.webp`;
+    postImage.image = `${req.protocol}://${req.get('host')}/tmp/image-${
+      post.author._id
+    }-${post.author.studentNumber}-${postNumber + 1}.webp`;
 
     res.json(postImage);
   } catch (error) {
@@ -123,8 +126,9 @@ route.get('/author/:authorId', async (req, res) => {
         (postId) => postId.toString() === post._id.toString()
       );
 
-      postImage.image = `${req.protocol}://${req.get('host')}/tmp/image-${post.author._id
-        }-${post.author.studentNumber}-${postNumber + 1}.webp`;
+      postImage.image = `${req.protocol}://${req.get('host')}/tmp/image-${
+        post.author._id
+      }-${post.author.studentNumber}-${postNumber + 1}.webp`;
 
       return postImage;
     });
@@ -232,90 +236,107 @@ const upload = multer({
   },
 }).single('image');
 
-route.post('/', auth, upload, async (req, res) => {
-  const { error } = validatePost(req.body);
-  if (error) {
-    return res.status(400).send({
-      message: error.details[0].message,
-    });
-  }
-
-  try {
-    const { title, description } = req.body;
-    const user = await User.findById(req.user._id);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+route.post(
+  '/',
+  auth,
+  upload,
+  (err, req, res) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res
+          .status(400)
+          .send({ message: 'File size is too large. Maximum limit is 5MB' });
+      }
+    } else if (err) {
+      return res.status(400).send({ message: err.message });
+    }
+    next();
+  },
+  async (req, res) => {
+    const { error } = validatePost(req.body);
+    if (error) {
+      return res.status(400).send({
+        message: error.details[0].message,
+      });
     }
 
-    const post = new Post({
-      title,
-      description,
-      author: req.user._id,
-    });
-
-    if (!req.file) {
-      return res
-        .status(400)
-        .json({ success: false, message: 'No file provided' });
-    }
-
-    const { fileName, outputBuffer } = await processImage(
-      req.file,
-      user._id,
-      user.studentNumber,
-      user.posts.length + 1
-    );
-
-    // Append a timestamp to the filename
-    const uniqueFileName = `${fileName}-${Date.now()}`;
-
-    const params = {
-      Bucket: process.env.AWS3_BUCKET_NAME,
-      // Add a 'posts/' prefix for post images
-      Key: `posts/${uniqueFileName}`,
-      Body: outputBuffer,
-      ACL: 'public-read',
-      ContentType: 'image/webp',
-    };
-
-    s3.upload(params, (err, data) => {
-      if (err) {
-        console.error(err);
-        return res.status(500).send(err);
+    try {
+      const { title, description } = req.body;
+      const user = await User.findById(req.user._id);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
       }
 
-      // Set post.image after the uniqueFileName is created
-      post.image = uniqueFileName;
-      post.url = data.Location;
+      const post = new Post({
+        title,
+        description,
+        author: req.user._id,
+      });
 
-      post
-        .save()
-        .then((savedPost) => {
-          user.posts.push(savedPost._id);
-          user
-            .save()
-            .then(() => {
-              console.log(savedPost);
-              res.status(201).send({
-                message: 'Post created successfully',
-                post: savedPost,
-              });
-            })
-            .catch((err) => {
-              console.error(err);
-              res.status(500).json({ message: err.message });
-            });
-        })
-        .catch((err) => {
+      if (!req.file) {
+        return res
+          .status(400)
+          .json({ success: false, message: 'No file provided' });
+      }
+
+      const { fileName, outputBuffer } = await processImage(
+        req.file,
+        user._id,
+        user.studentNumber,
+        user.posts.length + 1
+      );
+
+      // Append a timestamp to the filename
+      const uniqueFileName = `${fileName}-${Date.now()}`;
+
+      const params = {
+        Bucket: process.env.AWS3_BUCKET_NAME,
+        // Add a 'posts/' prefix for post images
+        Key: `posts/${uniqueFileName}`,
+        Body: outputBuffer,
+        ACL: 'public-read',
+        ContentType: 'image/webp',
+      };
+
+      s3.upload(params, (err, data) => {
+        if (err) {
           console.error(err);
-          res.status(500).json({ message: err.message });
-        });
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: err.message });
+          return res.status(500).send(err);
+        }
+
+        // Set post.image after the uniqueFileName is created
+        post.image = uniqueFileName;
+        post.url = data.Location;
+
+        post
+          .save()
+          .then((savedPost) => {
+            user.posts.push(savedPost._id);
+            user
+              .save()
+              .then(() => {
+                console.log(savedPost);
+                res.status(201).send({
+                  message: 'Post created successfully',
+                  post: savedPost,
+                });
+              })
+              .catch((err) => {
+                console.error(err);
+                res.status(500).json({ message: err.message });
+              });
+          })
+          .catch((err) => {
+            console.error(err);
+            res.status(500).json({ message: err.message });
+          });
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: err.message });
+    }
   }
-});
+);
 
 route.delete('/', async (req, res) => {
   const posts = await Post.deleteMany();
