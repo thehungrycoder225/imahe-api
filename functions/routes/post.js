@@ -26,7 +26,7 @@ route.get('/', async (req, res) => {
       page = 1,
       sortField = 'title',
       sortOrder = 'asc',
-      limit = 10,
+      limit = 100,
       title,
       authorName,
     } = req.query;
