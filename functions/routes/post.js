@@ -240,14 +240,15 @@ route.post(
   '/',
   auth,
   upload,
-  (err, req, res) => {
+  (err, req, res, next) => {
     if (err instanceof multer.MulterError) {
       if (err.code === 'LIMIT_FILE_SIZE') {
         return res
           .status(400)
           .send({ message: 'File size is too large. Maximum limit is 5MB' });
       }
-    } else if (err) {
+    }
+    if (err) {
       return res.status(400).send({ message: err.message });
     }
     next();

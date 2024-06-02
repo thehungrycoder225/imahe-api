@@ -9,6 +9,7 @@ const route = express.Router();
 const sharp = require('sharp');
 const AWS = require('aws-sdk');
 const dotenv = require('dotenv');
+const auth = require('../middleware/auth');
 dotenv.config();
 
 AWS.config.update({
@@ -177,7 +178,7 @@ route.post('/', upload, async (req, res) => {
   }
 });
 
-route.get('/', async (req, res) => {
+route.get('/', auth, async (req, res) => {
   try {
     const users = await User.find();
     const usersWithImages = users.map((user) => {
@@ -282,7 +283,7 @@ route.put('/:id', auth, upload, async (req, res) => {
   }
 });
 
-route.delete('/', async (req, res) => {
+route.delete('/', auth, async (req, res) => {
   const users = await User.deleteMany();
   res.send({
     message: 'Users deleted',
