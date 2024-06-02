@@ -9,7 +9,7 @@ const route = express.Router();
 const sharp = require('sharp');
 const AWS = require('aws-sdk');
 const dotenv = require('dotenv');
-const auth = require('../middleware/auth');
+
 dotenv.config();
 
 AWS.config.update({
